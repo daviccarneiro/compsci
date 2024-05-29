@@ -8,7 +8,7 @@ import pickle
 import os
 
 # Defina o caminho para o arquivo CSV
-csv_path = 'MOCK_DATA.csv'
+csv_path = './Predicao_CPOD/MOCK_DATA.csv'
 
 # Verifique se o arquivo CSV está no diretório
 if not os.path.isfile(csv_path):
