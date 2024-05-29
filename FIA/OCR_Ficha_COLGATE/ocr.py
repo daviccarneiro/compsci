@@ -1,9 +1,7 @@
 import cv2
 import pytesseract
 import pandas as pd
-import tkinter as tk
-from tkinter import filedialog
-from tkinter import messagebox
+import streamlit as st
 import os
 
 # Configurar a variável de ambiente TESSDATA_PREFIX
@@ -45,64 +43,72 @@ def detect_checkboxes(thresh, cropped_image):
 
     return extracted_data
 
-# Função para exibir e salvar os dados em um arquivo Excel
-def save_data_to_excel(data, output_path):
+def save_data_to_csv(data, output_path):
     # Criar um DataFrame
     df = pd.DataFrame([data])
 
     # Verificar se o arquivo existe
     if os.path.isfile(output_path):
-        # Se o arquivo existe, abra-o e adicione os novos dados
-        with pd.ExcelWriter(output_path, mode='a', engine='openpyxl', if_sheet_exists='overlay') as writer:
-            df.to_excel(writer, index=False, header=False, startrow=writer.sheets['Sheet1'].max_row)
+        # Se o arquivo existe, adicione os novos dados ao arquivo existente
+        df.to_csv(output_path, mode='a', header=False, index=False)
     else:
         # Se o arquivo não existe, crie um novo arquivo e adicione os dados
-        with pd.ExcelWriter(output_path, mode='w', engine='openpyxl') as writer:
-            df.to_excel(writer, index=False)
+        df.to_csv(output_path, mode='w', header=True, index=False)
 
-# Função para exibir os dados e permitir edição
-def show_data_for_editing(data):
-    edit_window = tk.Toplevel(root)
-    edit_window.title("Editar Dados Coletados")
+# Interface Streamlit
+st.title("Análise de Fichas")
+
+uploaded_file = st.file_uploader("Selecione a imagem da ficha para análise", type=["jpg", "jpeg", "png"])
+
+if uploaded_file is not None:
+    with open("temp_image.jpg", "wb") as f:
+        f.write(uploaded_file.getbuffer())
     
-    entries = {}
+    thresh, cropped_image = preprocess_image("temp_image.jpg")
+    data = detect_checkboxes(thresh, cropped_image)
     
-    for i, (key, value) in enumerate(data.items()):
-        tk.Label(edit_window, text=key).grid(row=i, column=0, padx=10, pady=5)
-        entry = tk.Entry(edit_window)
-        entry.grid(row=i, column=1, padx=10, pady=5)
-        entry.insert(0, value)
-        entries[key] = entry
+    st.write("Dados Extraídos:")
     
-    def save_edited_data():
-        edited_data = {key: int(entry.get()) for key, entry in entries.items()}
-        save_data_to_excel(edited_data, "dados_extraidos.xlsx")
-        messagebox.showinfo("Concluído", "Os dados foram salvos em 'dados_extraidos.xlsx'")
-        edit_window.destroy()
-    
-    tk.Button(edit_window, text="Salvar", command=save_edited_data).grid(row=len(data), columnspan=2, pady=10)
+    # Formulário para corrigir os dados extraídos
+    with st.form(key='data_form'):
+        escova_propria = st.selectbox('Escova Própria', [1, 2], index=0 if data['Escova_Propria'] == 1 else 1)
+        pasta_com_fluor = st.selectbox('Pasta Com Flúor', [1, 2], index=0 if data['Pasta_Com_Fluor'] == 1 else 1)
+        frequencia_escovacao = st.selectbox('Frequência de Escovação', [1, 2], index=0 if data['Frequencia_Escovacao'] == 1 else 1)
+        uso_alcool = st.selectbox('Uso de Álcool', [1, 2], index=0 if data['Uso_Alcool'] == 1 else 1)
+        freq_alcool = st.selectbox('Frequência de Uso de Álcool', [0, 1, 2, 3, 4], index=data['Freq_Alcool'])
+        uso_tabaco = st.selectbox('Uso de Tabaco', [1, 2], index=0 if data['Uso_Tabaco'] == 1 else 1)
+        freq_tabaco = st.selectbox('Frequência de Uso de Tabaco', [0, 1, 2, 3, 4], index=data['Freq_Tabaco'])
+        religiao = st.selectbox('Prática de Alguma Religião', [1, 2], index=0 if data['Religiao'] == 1 else 1)
+        freq_religiao = st.selectbox('Frequência da Prática Religiosa', [0, 1, 2, 3], index=data['Freq_Religiao'])
 
-# Função para selecionar o arquivo e processar a imagem
-def select_file():
-    file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.jpg *.jpeg *.png")])
-    if file_path:
-        thresh, cropped_image = preprocess_image(file_path)
-        data = detect_checkboxes(thresh, cropped_image)
-        show_data_for_editing(data)
-    else:
-        messagebox.showwarning("Aviso", "Nenhum arquivo selecionado.")
+        submit_button = st.form_submit_button(label='Salvar Dados')
 
-# Criar a interface gráfica
-root = tk.Tk()
-root.title("Análise de Fichas")
-
-frame = tk.Frame(root, padx=10, pady=10)
-frame.pack(padx=10, pady=10)
-
-label = tk.Label(frame, text="Selecione a imagem da ficha para análise:")
-label.pack(pady=5)
-
-button = tk.Button(frame, text="Selecionar arquivo", command=select_file)
-button.pack(pady=5)
-
-root.mainloop()
+    if submit_button:
+        # Atualizar os dados com os valores do formulário
+        data = {
+            "Escova_Propria": escova_propria,
+            "Pasta_Com_Fluor": pasta_com_fluor,
+            "Frequencia_Escovacao": frequencia_escovacao,
+            "Uso_Alcool": uso_alcool,
+            "Freq_Alcool": freq_alcool,
+            "Uso_Tabaco": uso_tabaco,
+            "Freq_Tabaco": freq_tabaco,
+            "Religiao": religiao,
+            "Freq_Religiao": freq_religiao
+        }
+        save_data_to_csv(data, "dados_extraidos.csv")
+        st.success("Dados salvos com sucesso em 'dados_extraidos.csv'")
+        
+        # Botão para visualizar a ficha atualizada
+        if st.button("Visualizar Ficha Atualizada"):
+            df = pd.read_csv("dados_extraidos.csv")
+            st.write(df)
+        
+        # Botão para exportar a planilha atual
+        with open("dados_extraidos.csv", "rb") as file:
+            st.download_button(
+                label="Download Planilha",
+                data=file,
+                file_name="dados_extraidos.csv",
+                mime="text/csv"
+            )
