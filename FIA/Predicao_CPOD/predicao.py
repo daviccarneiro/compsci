@@ -7,7 +7,7 @@ from sklearn.metrics import mean_squared_error
 import pickle
 
 # Load dataset
-data = pd.read_csv('./MOCK_DATA.csv')
+data = pd.read_csv('MOCK_DATA.csv')
 
 # Preprocess the data
 le_gender = LabelEncoder()
