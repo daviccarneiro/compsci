@@ -7,12 +7,12 @@ import os
 # Configurar a variável de ambiente TESSDATA_PREFIX
 os.environ['TESSDATA_PREFIX'] = '/opt/homebrew/Cellar/tesseract/5.3.4_1/share/tessdata'
 
-# Definir o caminho para o executável do Tesseract (ajuste conforme necessário)
+# Definir o caminho para o executável do Tesseract 
 pytesseract.pytesseract.tesseract_cmd = r'/opt/homebrew/bin/tesseract'
 
 def preprocess_image(image_path):
     image = cv2.imread(image_path)
-    cropped_image = image[1100:1700, 100:1400]  # Ajuste os valores conforme necessário para focar na área específica
+    cropped_image = image[1100:1700, 100:1400]  
     gray = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
     return thresh, cropped_image
