@@ -5,9 +5,18 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 import pickle
+import os
+
+# Defina o caminho para o arquivo CSV
+csv_path = 'MOCK_DATA.csv'
+
+# Verifique se o arquivo CSV está no diretório
+if not os.path.isfile(csv_path):
+    st.error(f"Arquivo {csv_path} não encontrado.")
+    st.stop()
 
 # Load dataset
-data = pd.read_csv('MOCK_DATA.csv')
+data = pd.read_csv(csv_path)
 
 # Preprocess the data
 le_gender = LabelEncoder()
@@ -52,4 +61,3 @@ if st.button('Re-treinar modelo'):
     with open(model_path, 'wb') as file:
         pickle.dump(model, file)
     st.write('Modelo re-treinado com sucesso!')
-
