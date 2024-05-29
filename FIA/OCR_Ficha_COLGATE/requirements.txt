@@ -2,4 +2,3 @@ streamlit
 opencv-python-headless
 pytesseract
 pandas
-cv2
