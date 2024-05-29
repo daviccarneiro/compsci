@@ -6,41 +6,41 @@ from tkinter import filedialog
 from tkinter import messagebox
 import os
 
-# Definir o caminho para o executável do Tesseract (ajuste conforme necessário)
-pytesseract.pytesseract.tesseract_cmd = r'/opt/homebrew/bin/tesseract'  # Ajuste conforme necessário
-
-# Verificar se a variável TESSDATA_PREFIX está configurada corretamente
+# Configurar a variável de ambiente TESSDATA_PREFIX
 os.environ['TESSDATA_PREFIX'] = '/opt/homebrew/Cellar/tesseract/5.3.4_1/share/tessdata'
 
-# Função para realizar OCR e verificar checkboxes
-def extract_data_from_image(image_path):
-    # Carregar a imagem
+# Definir o caminho para o executável do Tesseract (ajuste conforme necessário)
+pytesseract.pytesseract.tesseract_cmd = r'/opt/homebrew/bin/tesseract'
+
+def preprocess_image(image_path):
     image = cv2.imread(image_path)
-
-    # Pré-processamento da imagem
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    cropped_image = image[1100:1700, 100:1400]  # Ajuste os valores conforme necessário para focar na área específica
+    gray = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
+    return thresh, cropped_image
 
-    # Aplicar OCR para extrair texto
-    data = pytesseract.image_to_string(thresh, lang='por')
+def detect_checkboxes(thresh, cropped_image):
+    contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    checkbox_positions = []
 
-    # Analisar os dados extraídos
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        if 15 < w < 50 and 15 < h < 50:
+            checkbox_positions.append((x, y, w, h))
+
+    checkbox_positions = sorted(checkbox_positions, key=lambda pos: (pos[1], pos[0]))
+
+    # Mapeamento das posições de checkboxes para as variáveis de interesse
     extracted_data = {
-        "Escova de dentes própria": "Sim" if "Escova de dentes própria\nSim" in data else "Não",
-        "Uso de pasta de dentes com fluor": "Sim" if "Uso de pasta de dentes com fluor\nSim" in data else "Não",
-        "Frequência da escovação": "Sim" if "Frequência da escovação\nSim" in data else "Não",
-        "Consumo de bebida alcoolica": "Sim" if "Consumo de bebida alcoolica\nSim" in data else "Não",
-        "Uso de tabaco": "Sim" if "Uso de tabaco\nSim" in data else "Não",
-        "Prática de alguma religião": "Sim" if "Prática de alguma religião\nSim" in data else "Não",
-        "Frequência do consumo (diário)": "Diário" if "Frequência do consumo\nDiário" in data else "",
-        "Frequência do consumo (semanal)": "Semanal" if "Frequência do consumo\nSemanal" in data else "",
-        "Frequência do consumo (mensal)": "Mensal" if "Frequência do consumo\nMensal" in data else "",
-        "Frequência do consumo (eventos sociais)": "Eventos sociais" if "Frequência do consumo\nEventos sociais" in data else "",
-        "Frequência do consumo (nunca)": "Nunca" if "Frequência do consumo\nNunca" in data else "",
-        "Frequência (nunca)": "Nunca" if "Frequência\nNunca" in data else "",
-        "Frequência (anualmente)": "Anualmente" if "Frequência\nAnualmente" in data else "",
-        "Frequência (mensalmente)": "Mensalmente" if "Frequência\nMensalmente" in data else "",
-        "Frequência (semanalmente)": "Semanalmente" if "Frequência\nSemanalmente" in data else ""
+        "Escova_Propria": 1 if any(40 < x < 70 and 40 < y < 70 for x, y, w, h in checkbox_positions) else 2,
+        "Pasta_Com_Fluor": 1 if any(250 < x < 280 and 40 < y < 70 for x, y, w, h in checkbox_positions) else 2,
+        "Frequencia_Escovacao": 1 if any(470 < x < 500 and 40 < y < 70 for x, y, w, h in checkbox_positions) else 2,
+        "Uso_Alcool": 1 if any(40 < x < 70 and 170 < y < 200 for x, y, w, h in checkbox_positions) else 2,
+        "Freq_Alcool": 0 if any(40 < x < 70 and 350 < y < 380 for x, y, w, h in checkbox_positions) else 1 if any(40 < x < 70 and 230 < y < 260 for x, y, w, h in checkbox_positions) else 2 if any(40 < x < 70 and 260 < y < 290 for x, y, w, h in checkbox_positions) else 3 if any(40 < x < 70 and 290 < y < 320 for x, y, w, h in checkbox_positions) else 4,
+        "Uso_Tabaco": 1 if any(250 < x < 280 and 170 < y < 200 for x, y, w, h in checkbox_positions) else 2,
+        "Freq_Tabaco": 0 if any(250 < x < 280 and 350 < y < 380 for x, y, w, h in checkbox_positions) else 1 if any(250 < x < 280 and 230 < y < 260 for x, y, w, h in checkbox_positions) else 2 if any(250 < x < 280 and 260 < y < 290 for x, y, w, h in checkbox_positions) else 3 if any(250 < x < 280 and 290 < y < 320 for x, y, w, h in checkbox_positions) else 4,
+        "Religiao": 1 if any(470 < x < 500 and 170 < y < 200 for x, y, w, h in checkbox_positions) else 2,
+        "Freq_Religiao": 0 if any(470 < x < 500 and 350 < y < 380 for x, y, w, h in checkbox_positions) else 1 if any(470 < x < 500 and 230 < y < 260 for x, y, w, h in checkbox_positions) else 2 if any(470 < x < 500 and 260 < y < 290 for x, y, w, h in checkbox_positions) else 3
     }
 
     return extracted_data
@@ -50,19 +50,45 @@ def save_data_to_excel(data, output_path):
     # Criar um DataFrame
     df = pd.DataFrame([data])
 
-    # Exibir os dados extraídos
-    print(df)
+    # Verificar se o arquivo existe
+    if os.path.isfile(output_path):
+        # Se o arquivo existe, abra-o e adicione os novos dados
+        with pd.ExcelWriter(output_path, mode='a', engine='openpyxl', if_sheet_exists='overlay') as writer:
+            df.to_excel(writer, index=False, header=False, startrow=writer.sheets['Sheet1'].max_row)
+    else:
+        # Se o arquivo não existe, crie um novo arquivo e adicione os dados
+        with pd.ExcelWriter(output_path, mode='w', engine='openpyxl') as writer:
+            df.to_excel(writer, index=False)
 
-    # Salvar em um arquivo Excel
-    df.to_excel(output_path, index=False)
+# Função para exibir os dados e permitir edição
+def show_data_for_editing(data):
+    edit_window = tk.Toplevel(root)
+    edit_window.title("Editar Dados Coletados")
+    
+    entries = {}
+    
+    for i, (key, value) in enumerate(data.items()):
+        tk.Label(edit_window, text=key).grid(row=i, column=0, padx=10, pady=5)
+        entry = tk.Entry(edit_window)
+        entry.grid(row=i, column=1, padx=10, pady=5)
+        entry.insert(0, value)
+        entries[key] = entry
+    
+    def save_edited_data():
+        edited_data = {key: int(entry.get()) for key, entry in entries.items()}
+        save_data_to_excel(edited_data, "dados_extraidos.xlsx")
+        messagebox.showinfo("Concluído", "Os dados foram salvos em 'dados_extraidos.xlsx'")
+        edit_window.destroy()
+    
+    tk.Button(edit_window, text="Salvar", command=save_edited_data).grid(row=len(data), columnspan=2, pady=10)
 
 # Função para selecionar o arquivo e processar a imagem
 def select_file():
     file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.jpg *.jpeg *.png")])
     if file_path:
-        data = extract_data_from_image(file_path)
-        save_data_to_excel(data, "dados_extraidos.xlsx")
-        messagebox.showinfo("Concluído", "Os dados foram extraídos e salvos em 'dados_extraidos.xlsx'")
+        thresh, cropped_image = preprocess_image(file_path)
+        data = detect_checkboxes(thresh, cropped_image)
+        show_data_for_editing(data)
     else:
         messagebox.showwarning("Aviso", "Nenhum arquivo selecionado.")
 
